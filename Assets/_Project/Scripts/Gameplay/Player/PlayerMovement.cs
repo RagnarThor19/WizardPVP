@@ -13,6 +13,11 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float maxJumpHoldTime = 0.16f;
     [SerializeField] private float jumpCutMultiplier = 0.45f;
 
+    [Header("Ground Check")]
+    [SerializeField] private float groundCheckDistance = 0.08f;
+    [SerializeField] private float jumpBufferTime = 0.12f;
+    [SerializeField] private float coyoteTime = 0.08f;
+
     [Header("Gravity")]
     [SerializeField] private float gravity = -25f;
     [SerializeField] private float groundedGravity = -2f;
@@ -23,8 +28,9 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 verticalVelocity;
 
     private bool isJumping;
-    private bool hasReleasedJump;
     private float jumpHoldTimer;
+    private float jumpBufferCounter;
+    private float coyoteCounter;
 
     private float smallJumpVelocity;
     private float bigJumpVelocity;
@@ -40,66 +46,115 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        HandleMovement();
-        HandleJumpAndGravity();
+        HandleJumpBuffer();
+        HandleMovementAndGravity();
 
         input.ClearOneFrameInputs();
     }
 
-    private void HandleMovement()
+    private void HandleJumpBuffer()
     {
-        Vector2 moveInput = input.MoveInput;
-
-        Vector3 moveDirection =
-            transform.right * moveInput.x +
-            transform.forward * moveInput.y;
-
-        characterController.Move(moveDirection * moveSpeed * Time.deltaTime);
+        if (input.JumpPressedThisFrame)
+        {
+            jumpBufferCounter = jumpBufferTime;
+        }
+        else
+        {
+            jumpBufferCounter -= Time.deltaTime;
+        }
     }
 
-    private void HandleJumpAndGravity()
+    private void HandleMovementAndGravity()
     {
-        bool grounded = characterController.isGrounded;
+        bool grounded = IsGrounded();
+
+        if (grounded)
+        {
+            coyoteCounter = coyoteTime;
+        }
+        else
+        {
+            coyoteCounter -= Time.deltaTime;
+        }
 
         if (grounded && verticalVelocity.y < 0f)
         {
             verticalVelocity.y = groundedGravity;
             isJumping = false;
-            hasReleasedJump = false;
             jumpHoldTimer = 0f;
         }
 
-        if (grounded && input.JumpPressedThisFrame)
+        if (jumpBufferCounter > 0f && coyoteCounter > 0f)
         {
-            verticalVelocity.y = smallJumpVelocity;
-            isJumping = true;
-            hasReleasedJump = false;
-            jumpHoldTimer = 0f;
+            StartJump();
         }
 
-        if (isJumping)
+        if (isJumping && input.JumpHeld && jumpHoldTimer < maxJumpHoldTime)
         {
-            if (!input.JumpHeld)
-            {
-                hasReleasedJump = true;
-            }
+            ContinueHeldJump();
+        }
 
-            if (input.JumpHeld && !hasReleasedJump && jumpHoldTimer < maxJumpHoldTime)
-            {
-                jumpHoldTimer += Time.deltaTime;
-
-                float holdPercent = jumpHoldTimer / maxJumpHoldTime;
-                verticalVelocity.y = Mathf.Lerp(smallJumpVelocity, bigJumpVelocity, holdPercent);
-            }
-
-            if (hasReleasedJump && verticalVelocity.y > 0f)
-            {
-                verticalVelocity.y *= jumpCutMultiplier;
-                isJumping = false;
-            }
+        if (input.JumpReleasedThisFrame && verticalVelocity.y > 0f)
+        {
+            verticalVelocity.y *= jumpCutMultiplier;
+            isJumping = false;
         }
 
         verticalVelocity.y += gravity * Time.deltaTime;
-        characterController.Move(verticalVelocity * Time.deltaTime);
+
+        Vector2 moveInput = input.MoveInput;
+
+        Vector3 horizontalVelocity =
+            (transform.right * moveInput.x + transform.forward * moveInput.y) * moveSpeed;
+
+        Vector3 finalVelocity = horizontalVelocity + verticalVelocity;
+
+        characterController.Move(finalVelocity * Time.deltaTime);
+    }
+
+    private void StartJump()
+    {
+        verticalVelocity.y = smallJumpVelocity;
+
+        isJumping = true;
+        jumpHoldTimer = 0f;
+
+        jumpBufferCounter = 0f;
+        coyoteCounter = 0f;
+    }
+
+    private void ContinueHeldJump()
+    {
+        jumpHoldTimer += Time.deltaTime;
+
+        float holdPercent = jumpHoldTimer / maxJumpHoldTime;
+        float targetVelocity = Mathf.Lerp(smallJumpVelocity, bigJumpVelocity, holdPercent);
+
+        if (verticalVelocity.y < targetVelocity)
+        {
+            verticalVelocity.y = targetVelocity;
+        }
+    }
+
+    private bool IsGrounded()
+    {
+        if (characterController.isGrounded)
+        {
+            return true;
+        }
+
+        float sphereRadius = characterController.radius * 0.9f;
+
+        Vector3 spherePosition =
+            transform.position +
+            characterController.center -
+            Vector3.up * ((characterController.height / 2f) - sphereRadius + groundCheckDistance);
+
+        return Physics.CheckSphere(
+            spherePosition,
+            sphereRadius,
+            ~0,
+            QueryTriggerInteraction.Ignore
+        );
     }
 }

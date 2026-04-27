@@ -1,12 +1,15 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+[DefaultExecutionOrder(-100)]
+[RequireComponent(typeof(PlayerInput))]
 public class PlayerInputHandler : MonoBehaviour
 {
     public Vector2 MoveInput { get; private set; }
     public Vector2 LookInput { get; private set; }
 
     public bool JumpPressedThisFrame { get; private set; }
+    public bool JumpReleasedThisFrame { get; private set; }
     public bool JumpHeld { get; private set; }
 
     public bool DashPressed { get; private set; }
@@ -15,41 +18,41 @@ public class PlayerInputHandler : MonoBehaviour
 
     public int SelectedStaffSlot { get; private set; } = 1;
 
-    public void OnMove(InputValue value)
+    private PlayerInput playerInput;
+
+    private InputAction moveAction;
+    private InputAction lookAction;
+    private InputAction jumpAction;
+    private InputAction dashAction;
+    private InputAction castAction;
+    private InputAction swingAction;
+
+    private void Awake()
     {
-        MoveInput = value.Get<Vector2>();
+        playerInput = GetComponent<PlayerInput>();
+
+        InputActionMap playerMap = playerInput.actions.FindActionMap("Player", true);
+
+        moveAction = playerMap.FindAction("Move", true);
+        lookAction = playerMap.FindAction("Look", true);
+        jumpAction = playerMap.FindAction("Jump", true);
+        dashAction = playerMap.FindAction("Dash", true);
+        castAction = playerMap.FindAction("Cast", true);
+        swingAction = playerMap.FindAction("Swing", true);
     }
 
-    public void OnLook(InputValue value)
+    private void Update()
     {
-        LookInput = value.Get<Vector2>();
-    }
+        MoveInput = moveAction.ReadValue<Vector2>();
+        LookInput = lookAction.ReadValue<Vector2>();
 
-    public void OnJump(InputValue value)
-    {
-        bool isPressed = value.isPressed;
+        JumpPressedThisFrame = jumpAction.WasPressedThisFrame();
+        JumpReleasedThisFrame = jumpAction.WasReleasedThisFrame();
+        JumpHeld = jumpAction.IsPressed();
 
-        if (isPressed && !JumpHeld)
-        {
-            JumpPressedThisFrame = true;
-        }
-
-        JumpHeld = isPressed;
-    }
-
-    public void OnDash(InputValue value)
-    {
-        if (value.isPressed) DashPressed = true;
-    }
-
-    public void OnCast(InputValue value)
-    {
-        if (value.isPressed) CastPressed = true;
-    }
-
-    public void OnSwing(InputValue value)
-    {
-        if (value.isPressed) SwingPressed = true;
+        if (dashAction.WasPressedThisFrame()) DashPressed = true;
+        if (castAction.WasPressedThisFrame()) CastPressed = true;
+        if (swingAction.WasPressedThisFrame()) SwingPressed = true;
     }
 
     public void OnStaff1(InputValue value)
@@ -84,7 +87,6 @@ public class PlayerInputHandler : MonoBehaviour
 
     public void ClearOneFrameInputs()
     {
-        JumpPressedThisFrame = false;
         DashPressed = false;
         CastPressed = false;
         SwingPressed = false;
