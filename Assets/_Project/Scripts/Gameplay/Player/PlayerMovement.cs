@@ -8,19 +8,21 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float moveSpeed = 6f;
 
     [Header("Jump")]
-    [SerializeField] private float smallJumpHeight = 1.5f;
-    [SerializeField] private float bigJumpHeight = 2.25f;
-    [SerializeField] private float maxJumpHoldTime = 0.16f;
+    [SerializeField] private float smallJumpHeight = 1.4f;
+    [SerializeField] private float bigJumpHeight = 2.1f;
+    [SerializeField] private float maxJumpHoldTime = 0.14f;
     [SerializeField] private float jumpCutMultiplier = 0.45f;
 
     [Header("Ground Check")]
-    [SerializeField] private float groundCheckDistance = 0.08f;
+    [SerializeField] private float groundCheckDistance = 0.12f;
     [SerializeField] private float jumpBufferTime = 0.12f;
     [SerializeField] private float coyoteTime = 0.08f;
+    [SerializeField] private LayerMask groundLayers = ~0;
 
     [Header("Gravity")]
-    [SerializeField] private float gravity = -25f;
-    [SerializeField] private float groundedGravity = -2f;
+    [SerializeField] private float gravity = -34f;
+    [SerializeField] private float fallGravityMultiplier = 1.45f;
+    [SerializeField] private float groundedGravity = -3f;
 
     private CharacterController characterController;
     private PlayerInputHandler input;
@@ -28,6 +30,8 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 verticalVelocity;
 
     private bool isJumping;
+    private bool hasJumpedSinceGrounded;
+
     private float jumpHoldTimer;
     private float jumpBufferCounter;
     private float coyoteCounter;
@@ -40,8 +44,12 @@ public class PlayerMovement : MonoBehaviour
         characterController = GetComponent<CharacterController>();
         input = GetComponent<PlayerInputHandler>();
 
-        smallJumpVelocity = Mathf.Sqrt(smallJumpHeight * -2f * gravity);
-        bigJumpVelocity = Mathf.Sqrt(bigJumpHeight * -2f * gravity);
+        RecalculateJumpVelocities();
+    }
+
+    private void OnValidate()
+    {
+        RecalculateJumpVelocities();
     }
 
     private void Update()
@@ -50,6 +58,12 @@ public class PlayerMovement : MonoBehaviour
         HandleMovementAndGravity();
 
         input.ClearOneFrameInputs();
+    }
+
+    private void RecalculateJumpVelocities()
+    {
+        smallJumpVelocity = Mathf.Sqrt(smallJumpHeight * -2f * gravity);
+        bigJumpVelocity = Mathf.Sqrt(bigJumpHeight * -2f * gravity);
     }
 
     private void HandleJumpBuffer()
@@ -68,23 +82,20 @@ public class PlayerMovement : MonoBehaviour
     {
         bool grounded = IsGrounded();
 
-        if (grounded)
+        if (grounded && verticalVelocity.y <= 0f)
         {
             coyoteCounter = coyoteTime;
+            hasJumpedSinceGrounded = false;
+            isJumping = false;
+            jumpHoldTimer = 0f;
+            verticalVelocity.y = groundedGravity;
         }
         else
         {
             coyoteCounter -= Time.deltaTime;
         }
 
-        if (grounded && verticalVelocity.y < 0f)
-        {
-            verticalVelocity.y = groundedGravity;
-            isJumping = false;
-            jumpHoldTimer = 0f;
-        }
-
-        if (jumpBufferCounter > 0f && coyoteCounter > 0f)
+        if (jumpBufferCounter > 0f && coyoteCounter > 0f && !hasJumpedSinceGrounded)
         {
             StartJump();
         }
@@ -100,7 +111,7 @@ public class PlayerMovement : MonoBehaviour
             isJumping = false;
         }
 
-        verticalVelocity.y += gravity * Time.deltaTime;
+        ApplyGravity();
 
         Vector2 moveInput = input.MoveInput;
 
@@ -117,6 +128,7 @@ public class PlayerMovement : MonoBehaviour
         verticalVelocity.y = smallJumpVelocity;
 
         isJumping = true;
+        hasJumpedSinceGrounded = true;
         jumpHoldTimer = 0f;
 
         jumpBufferCounter = 0f;
@@ -128,32 +140,43 @@ public class PlayerMovement : MonoBehaviour
         jumpHoldTimer += Time.deltaTime;
 
         float holdPercent = jumpHoldTimer / maxJumpHoldTime;
-        float targetVelocity = Mathf.Lerp(smallJumpVelocity, bigJumpVelocity, holdPercent);
+        float extraVelocity = Mathf.Lerp(0f, bigJumpVelocity - smallJumpVelocity, holdPercent);
 
-        if (verticalVelocity.y < targetVelocity)
+        verticalVelocity.y += extraVelocity * Time.deltaTime * 8f;
+
+        if (verticalVelocity.y > bigJumpVelocity)
         {
-            verticalVelocity.y = targetVelocity;
+            verticalVelocity.y = bigJumpVelocity;
         }
+    }
+
+    private void ApplyGravity()
+    {
+        float currentGravity = gravity;
+
+        if (verticalVelocity.y < 0f)
+        {
+            currentGravity *= fallGravityMultiplier;
+        }
+
+        verticalVelocity.y += currentGravity * Time.deltaTime;
     }
 
     private bool IsGrounded()
     {
-        if (characterController.isGrounded)
+        if (verticalVelocity.y > 0.1f)
         {
-            return true;
+            return false;
         }
 
-        float sphereRadius = characterController.radius * 0.9f;
+        Vector3 rayStart = transform.position + characterController.center;
+        float rayDistance = (characterController.height / 2f) + groundCheckDistance;
 
-        Vector3 spherePosition =
-            transform.position +
-            characterController.center -
-            Vector3.up * ((characterController.height / 2f) - sphereRadius + groundCheckDistance);
-
-        return Physics.CheckSphere(
-            spherePosition,
-            sphereRadius,
-            ~0,
+        return Physics.Raycast(
+            rayStart,
+            Vector3.down,
+            rayDistance,
+            groundLayers,
             QueryTriggerInteraction.Ignore
         );
     }
