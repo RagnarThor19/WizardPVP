@@ -12,6 +12,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float bigJumpHeight = 2.1f;
     [SerializeField] private float maxJumpHoldTime = 0.14f;
     [SerializeField] private float jumpCutMultiplier = 0.45f;
+    [SerializeField] private float jumpLandingCooldown = 0.12f;
 
     [Header("Ground Check")]
     [SerializeField] private float groundCheckDistance = 0.12f;
@@ -31,10 +32,12 @@ public class PlayerMovement : MonoBehaviour
 
     private bool isJumping;
     private bool hasJumpedSinceGrounded;
+    private bool wasGroundedLastFrame;
 
     private float jumpHoldTimer;
     private float jumpBufferCounter;
     private float coyoteCounter;
+    private float jumpCooldownCounter;
 
     private float smallJumpVelocity;
     private float bigJumpVelocity;
@@ -82,6 +85,16 @@ public class PlayerMovement : MonoBehaviour
     {
         bool grounded = IsGrounded();
 
+        if (grounded && !wasGroundedLastFrame)
+        {
+            jumpCooldownCounter = jumpLandingCooldown;
+        }
+
+        if (jumpCooldownCounter > 0f)
+        {
+            jumpCooldownCounter -= Time.deltaTime;
+        }
+
         if (grounded && verticalVelocity.y <= 0f)
         {
             coyoteCounter = coyoteTime;
@@ -95,7 +108,13 @@ public class PlayerMovement : MonoBehaviour
             coyoteCounter -= Time.deltaTime;
         }
 
-        if (jumpBufferCounter > 0f && coyoteCounter > 0f && !hasJumpedSinceGrounded)
+        bool canJump =
+            jumpBufferCounter > 0f &&
+            coyoteCounter > 0f &&
+            !hasJumpedSinceGrounded &&
+            jumpCooldownCounter <= 0f;
+
+        if (canJump)
         {
             StartJump();
         }
@@ -121,6 +140,8 @@ public class PlayerMovement : MonoBehaviour
         Vector3 finalVelocity = horizontalVelocity + verticalVelocity;
 
         characterController.Move(finalVelocity * Time.deltaTime);
+
+        wasGroundedLastFrame = grounded;
     }
 
     private void StartJump()
@@ -133,6 +154,7 @@ public class PlayerMovement : MonoBehaviour
 
         jumpBufferCounter = 0f;
         coyoteCounter = 0f;
+        jumpCooldownCounter = 0f;
     }
 
     private void ContinueHeldJump()
