@@ -55,6 +55,11 @@ public class PlayerInputHandler : MonoBehaviour
         if (swingAction.WasPressedThisFrame()) SwingPressed = true;
     }
 
+    private void LateUpdate()
+    {
+        ClearOneFrameInputs();
+    }
+
     public void OnStaff1(InputValue value)
     {
         if (value.isPressed) SelectedStaffSlot = 1;
@@ -85,7 +90,7 @@ public class PlayerInputHandler : MonoBehaviour
         if (value.isPressed) SelectedStaffSlot = 6;
     }
 
-    public void ClearOneFrameInputs()
+    private void ClearOneFrameInputs()
     {
         DashPressed = false;
         CastPressed = false;

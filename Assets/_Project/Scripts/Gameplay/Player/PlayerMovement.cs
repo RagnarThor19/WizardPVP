@@ -59,8 +59,6 @@ public class PlayerMovement : MonoBehaviour
     {
         HandleJumpBuffer();
         HandleMovementAndGravity();
-
-        input.ClearOneFrameInputs();
     }
 
     private void RecalculateJumpVelocities()
