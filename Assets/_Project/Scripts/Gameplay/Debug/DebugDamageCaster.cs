@@ -5,7 +5,7 @@ public class DebugDamageCaster : MonoBehaviour
 {
     [Header("Input")]
     [SerializeField] private Key damageKey = Key.F;
-    [SerializeField] private bool allowLeftMouseButton = true;
+    [SerializeField] private bool allowLeftMouseButton = false;
 
     [Header("Raycast")]
     [SerializeField] private Transform rayOrigin;

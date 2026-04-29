@@ -19,3 +19,5 @@ MonoBehaviour:
   damage: 10
   knockbackForce: 0
   damageType: 1
+  projectileSpeed: 18
+  projectileLifetime: 3

@@ -3,9 +3,10 @@ using UnityEngine;
 public class StaffLoadoutDebugHUD : MonoBehaviour
 {
     [SerializeField] private PlayerLoadout loadout;
+    [SerializeField] private StaffCooldowns cooldowns;
     [SerializeField] private bool showHud = true;
     [SerializeField] private Vector2 position = new Vector2(16f, 16f);
-    [SerializeField] private float width = 360f;
+    [SerializeField] private float width = 440f;
 
     private GUIStyle boxStyle;
     private GUIStyle selectedStyle;
@@ -16,6 +17,11 @@ public class StaffLoadoutDebugHUD : MonoBehaviour
         if (loadout == null)
         {
             loadout = GetComponent<PlayerLoadout>();
+        }
+
+        if (cooldowns == null)
+        {
+            cooldowns = GetComponent<StaffCooldowns>();
         }
     }
 
@@ -43,7 +49,8 @@ public class StaffLoadoutDebugHUD : MonoBehaviour
 
             string staffName = slot.HasStaff ? slot.Staff.DisplayName : "Empty";
             string spellName = slot.Spell != null ? slot.Spell.DisplayName : "No Spell";
-            string line = $"{i + 1}. {slot.RequiredTier}: {staffName} -> {spellName}";
+            string cooldownText = GetCooldownText(slot.RequiredTier);
+            string line = $"{i + 1}. {slot.RequiredTier}: {staffName} -> {spellName}  {cooldownText}";
 
             GUI.Label(new Rect(position.x + 12f, y, width - 24f, 22f), line, selected ? selectedStyle : normalStyle);
             y += 24f;
@@ -74,5 +81,22 @@ public class StaffLoadoutDebugHUD : MonoBehaviour
             fontStyle = FontStyle.Bold,
             normal = { textColor = new Color(1f, 0.82f, 0.35f) }
         };
+    }
+
+    private string GetCooldownText(StaffTier tier)
+    {
+        if (cooldowns == null)
+        {
+            return "";
+        }
+
+        float remaining = cooldowns.GetRemaining(tier);
+
+        if (remaining <= 0f)
+        {
+            return "[Ready]";
+        }
+
+        return $"[CD {remaining:0.0}s]";
     }
 }

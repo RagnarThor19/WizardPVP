@@ -91,6 +91,17 @@ public class HealthComponent : MonoBehaviour, ICombatTarget
         }
 
         IKnockbackable knockbackable = GetComponent<IKnockbackable>();
+
+        if (knockbackable == null)
+        {
+            knockbackable = GetComponentInParent<IKnockbackable>();
+        }
+
+        if (knockbackable == null)
+        {
+            knockbackable = GetComponentInChildren<IKnockbackable>();
+        }
+
         knockbackable?.ApplyKnockback(damageInfo.HitDirection, damageInfo.KnockbackForce);
     }
 }

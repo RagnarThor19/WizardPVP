@@ -508,6 +508,8 @@ GameObject:
   - component: {fileID: 1570705167}
   - component: {fileID: 1570705166}
   - component: {fileID: 1570705165}
+  - component: {fileID: 1570705171}
+  - component: {fileID: 1570705170}
   m_Layer: 0
   m_Name: Training Dummy
   m_TagString: Untagged
@@ -620,12 +622,52 @@ Transform:
   m_GameObject: {fileID: 1570705164}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 6}
+  m_LocalPosition: {x: 0, y: 0.525, z: 6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1570705170
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1570705164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a35bed7ab1e4de0a6ad8c0a3e27c7c8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RigidbodyKnockback
+  forceMode: 1
+--- !u!54 &1570705171
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1570705164}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &1699408781
 GameObject:
   m_ObjectHideFlags: 0
@@ -644,6 +686,9 @@ GameObject:
   - component: {fileID: 1699408793}
   - component: {fileID: 1699408792}
   - component: {fileID: 1699408794}
+  - component: {fileID: 1699408795}
+  - component: {fileID: 1699408796}
+  - component: {fileID: 1699408797}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -811,6 +856,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StaffLoadoutDebugHUD
   loadout: {fileID: 0}
+  cooldowns: {fileID: 0}
   showHud: 1
   position: {x: 16, y: 16}
   width: 360
@@ -865,10 +911,66 @@ MonoBehaviour:
   hitLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  drawBolt: 1
-  boltDuration: 0.08
-  boltWidth: 0.045
+  projectileRadius: 0.25
   boltColor: {r: 0.45, g: 0.8, b: 1, a: 1}
+--- !u!114 &1699408795
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1699408781}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0905ea2ec01a439a8cbfc0f72b115a87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StaffCooldowns
+--- !u!114 &1699408796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1699408781}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70c5a04d0ed74f22a7773f9fda4fcb4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStaffVisual
+  viewRoot: {fileID: 883722962}
+  localPosition: {x: 0.85, y: -0.5, z: 0.75}
+  localRotation: {x: 22, y: 8, z: 0}
+  staffLength: 0.95
+  staffThickness: 0.08
+  focusOrbSize: 0.16
+  castPointForwardOffset: 0.12
+  woodColor: {r: 0.23, g: 0.13, b: 0.08, a: 1}
+  focusColor: {r: 0.45, g: 0.85, b: 1, a: 0.85}
+--- !u!114 &1699408797
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1699408781}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66139e0850e04264b053d476140f47ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStaffSlash
+  slashOrigin: {fileID: 0}
+  range: 2.2
+  radius: 0.7
+  hitLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  cooldown: 0.75
+  damage: 6
+  knockbackForce: 9
+  upwardKnockback: 0.12
+  drawSlash: 1
+  visualDuration: 0.12
+  slashColor: {r: 1, g: 0.82, b: 0.45, a: 0.75}
 --- !u!1 &1855375998
 GameObject:
   m_ObjectHideFlags: 0

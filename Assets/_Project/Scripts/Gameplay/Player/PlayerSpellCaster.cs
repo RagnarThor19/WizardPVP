@@ -1,9 +1,9 @@
-using System.Collections;
 using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PlayerInputHandler))]
 [RequireComponent(typeof(PlayerLoadout))]
+[RequireComponent(typeof(StaffCooldowns))]
 public class PlayerSpellCaster : MonoBehaviour
 {
     [Header("Casting")]
@@ -13,26 +13,28 @@ public class PlayerSpellCaster : MonoBehaviour
     [SerializeField] private float range = 35f;
     [SerializeField] private LayerMask hitLayers = ~0;
 
-    [Header("Debug Visual")]
-    [SerializeField] private bool drawBolt = true;
-    [SerializeField] private float boltDuration = 0.4f;
-    [SerializeField] private float boltWidth = 0.08f;
+    [Header("Projectile Visual")]
+    [SerializeField] private float projectileRadius = 0.25f;
     [SerializeField] private Color boltColor = new Color(0.45f, 0.85f, 1f, 0.7f);
 
     private PlayerInputHandler input;
     private PlayerLoadout loadout;
-    private Material boltMaterial;
+    private StaffCooldowns cooldowns;
+    private Material projectileMaterial;
 
     private void Awake()
     {
         input = GetComponent<PlayerInputHandler>();
         loadout = GetComponent<PlayerLoadout>();
+        cooldowns = GetComponent<StaffCooldowns>();
 
         if (castOrigin == null)
         {
             Camera mainCamera = Camera.main;
             castOrigin = mainCamera != null ? mainCamera.transform : transform;
         }
+
+        TryFindStaffCastPoint();
     }
 
     private void Update()
@@ -45,11 +47,20 @@ public class PlayerSpellCaster : MonoBehaviour
 
     private void TryCastSelectedSpell()
     {
+        StaffSlot selectedSlot = loadout.SelectedSlot;
         SpellData spell = loadout.SelectedSpell;
 
         if (spell == null)
         {
             Debug.Log("No spell equipped in the selected staff slot.");
+            return;
+        }
+
+        StaffTier cooldownTier = selectedSlot.RequiredTier;
+
+        if (cooldowns.IsOnCooldown(cooldownTier))
+        {
+            Debug.Log($"{cooldownTier} staffs are on cooldown for {cooldowns.GetRemaining(cooldownTier):0.0}s.");
             return;
         }
 
@@ -60,67 +71,54 @@ public class PlayerSpellCaster : MonoBehaviour
         if (Physics.Raycast(start, direction, out RaycastHit hit, range, hitLayers, QueryTriggerInteraction.Ignore))
         {
             end = hit.point;
-            DamageHitTarget(spell, hit);
-        }
-        else
-        {
-            Debug.Log($"{spell.DisplayName} did not hit anything.");
         }
 
-        if (drawBolt)
-        {
-            StartCoroutine(ShowBolt(GetBoltStartPosition(), end));
-        }
+        LaunchProjectile(spell, end);
+
+        cooldowns.StartCooldown(cooldownTier, spell.Cooldown);
     }
 
-    private void DamageHitTarget(SpellData spell, RaycastHit hit)
+    private void LaunchProjectile(SpellData spell, Vector3 aimPoint)
     {
-        IDamageable damageable = hit.collider.GetComponentInParent<IDamageable>();
+        Vector3 projectileStart = GetBoltStartPosition();
+        Vector3 projectileDirection = (aimPoint - projectileStart).normalized;
 
-        if (damageable == null)
+        if (projectileDirection.sqrMagnitude <= 0.0001f)
         {
-            Debug.Log($"{spell.DisplayName} hit {hit.collider.name}, but it has no HealthComponent.");
-            return;
+            projectileDirection = castOrigin.forward;
         }
 
-        Vector3 hitDirection = (hit.point - castOrigin.position).normalized;
+        GameObject projectileObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        projectileObject.name = $"{spell.DisplayName} Projectile";
+        projectileObject.transform.position = projectileStart;
+        projectileObject.transform.localScale = Vector3.one * projectileRadius;
 
-        DamageInfo damageInfo = new DamageInfo(
-            spell.Damage,
+        Collider projectileCollider = projectileObject.GetComponent<Collider>();
+        projectileCollider.enabled = false;
+
+        Renderer projectileRenderer = projectileObject.GetComponent<Renderer>();
+        projectileRenderer.material = GetProjectileMaterial();
+
+        SpellProjectile projectile = projectileObject.AddComponent<SpellProjectile>();
+        projectile.Initialize(
+            spell,
             gameObject,
-            hit.point,
-            hitDirection,
-            spell.KnockbackForce,
-            spell.DamageType
+            projectileDirection,
+            spell.ProjectileSpeed,
+            spell.ProjectileLifetime,
+            hitLayers
         );
 
-        damageable.TakeDamage(damageInfo);
-        Debug.Log($"{spell.DisplayName} dealt {spell.Damage} damage to {hit.collider.name}.");
-    }
-
-    private IEnumerator ShowBolt(Vector3 start, Vector3 end)
-    {
-        GameObject boltObject = new GameObject("Debug Test Bolt");
-        LineRenderer lineRenderer = boltObject.AddComponent<LineRenderer>();
-
-        lineRenderer.positionCount = 2;
-        lineRenderer.useWorldSpace = true;
-        lineRenderer.SetPosition(0, start);
-        lineRenderer.SetPosition(1, end);
-        lineRenderer.startWidth = boltWidth;
-        lineRenderer.endWidth = boltWidth;
-        lineRenderer.material = GetBoltMaterial();
-        lineRenderer.startColor = boltColor;
-        lineRenderer.endColor = boltColor;
-        lineRenderer.alignment = LineAlignment.View;
-
-        yield return new WaitForSeconds(boltDuration);
-
-        Destroy(boltObject);
+        Debug.Log($"{spell.DisplayName} projectile cast.");
     }
 
     private Vector3 GetBoltStartPosition()
     {
+        if (visualOrigin == null)
+        {
+            TryFindStaffCastPoint();
+        }
+
         if (visualOrigin != null)
         {
             return visualOrigin.position;
@@ -129,16 +127,32 @@ public class PlayerSpellCaster : MonoBehaviour
         return castOrigin.TransformPoint(visualOffsetFromCastOrigin);
     }
 
-    private Material GetBoltMaterial()
+    private void TryFindStaffCastPoint()
     {
-        if (boltMaterial != null)
+        StaffCastPoint castPoint = GetComponentInChildren<StaffCastPoint>();
+
+        if (castPoint != null)
         {
-            return boltMaterial;
+            visualOrigin = castPoint.transform;
+        }
+    }
+
+    private Material GetProjectileMaterial()
+    {
+        if (projectileMaterial != null)
+        {
+            return projectileMaterial;
         }
 
         Shader shader = Shader.Find("Sprites/Default");
-        boltMaterial = new Material(shader);
-        boltMaterial.color = boltColor;
-        return boltMaterial;
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Universal Render Pipeline/Unlit");
+        }
+
+        projectileMaterial = new Material(shader);
+        projectileMaterial.color = boltColor;
+        return projectileMaterial;
     }
 }
